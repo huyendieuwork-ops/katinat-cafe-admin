@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
-  Pencil,
   Trash2,
   Save,
   PackagePlus,
@@ -12,7 +11,50 @@ import {
 } from "lucide-react";
 import { useCafeStore } from "@/lib/store";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { Ingredient, StockReceipt } from "@/lib/types";
+import {
+  addIngredientToSupabase,
+  addInventoryLogToSupabase,
+  addStockReceiptToSupabase,
+  deleteIngredientInSupabase,
+  getIngredients,
+  getInventoryLogs,
+  getStockReceipts,
+  updateIngredientInSupabase,
+} from "@/lib/db";
+
+type IngredientRow = {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  cost: number;
+  min_stock: number;
+  created_at: string;
+};
+
+type InventoryLogRow = {
+  id: string;
+  ingredient_id: string;
+  ingredient_name: string;
+  previous_quantity: number;
+  new_quantity: number;
+  difference: number;
+  note: string;
+  updated_by: string;
+  created_at: string;
+};
+
+type StockReceiptRow = {
+  id: string;
+  ingredient_id: string;
+  ingredient_name: string;
+  quantity_added: number;
+  unit_cost: number;
+  total_cost: number;
+  note: string;
+  received_by: string;
+  created_at: string;
+};
 
 const emptyIngredientForm = {
   name: "",
@@ -26,15 +68,12 @@ const emptyEditForm = {
 };
 
 export default function InventoryPage() {
-  const {
-    currentUser,
-    data,
-    addIngredient,
-    updateIngredient,
-    deleteIngredient,
-    updateIngredientStock,
-    receiveIngredientStock,
-  } = useCafeStore();
+  const { currentUser } = useCafeStore();
+
+  const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
+  const [inventoryLogs, setInventoryLogs] = useState<InventoryLogRow[]>([]);
+  const [stockReceipts, setStockReceipts] = useState<StockReceiptRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [ingredientForm, setIngredientForm] = useState(emptyIngredientForm);
 
@@ -49,7 +88,37 @@ export default function InventoryPage() {
   const [receiptQuantity, setReceiptQuantity] = useState("");
   const [receiptUnitCost, setReceiptUnitCost] = useState("");
   const [receiptNote, setReceiptNote] = useState("Nhập hàng");
-  const [selectedReceipt, setSelectedReceipt] = useState<StockReceipt | null>(null);
+
+  const [selectedReceipt, setSelectedReceipt] = useState<StockReceiptRow | null>(null);
+
+  async function loadInventory(showAlert = false) {
+    try {
+      setLoading(true);
+
+      const [ingredientsData, logsData, receiptsData] = await Promise.all([
+        getIngredients(),
+        getInventoryLogs(),
+        getStockReceipts(),
+      ]);
+
+      setIngredients((ingredientsData || []) as IngredientRow[]);
+      setInventoryLogs((logsData || []) as InventoryLogRow[]);
+      setStockReceipts((receiptsData || []) as StockReceiptRow[]);
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu kho:", error);
+      if (showAlert) {
+        const message =
+          error instanceof Error ? error.message : JSON.stringify(error);
+        alert(`Lỗi tải dữ liệu kho: ${message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadInventory(true);
+  }, []);
 
   if (currentUser?.role !== "admin") {
     return (
@@ -59,95 +128,209 @@ export default function InventoryPage() {
     );
   }
 
-  const submitIngredient = (e: React.FormEvent) => {
+  const submitIngredient = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const payload = {
       name: ingredientForm.name.trim(),
       unit: ingredientForm.unit.trim(),
-      quantity: 0,
-      cost: 0,
-      minStock: 0,
     };
 
-    if (!payload.name || !payload.unit) return;
+    if (!payload.name || !payload.unit) {
+      alert("Vui lòng nhập đầy đủ tên nguyên liệu và đơn vị.");
+      return;
+    }
 
-    addIngredient(payload);
-    setIngredientForm(emptyIngredientForm);
+    try {
+      await addIngredientToSupabase({
+        id: `ingredient-${Date.now()}`,
+        name: payload.name,
+        unit: payload.unit,
+        quantity: 0,
+        cost: 0,
+        min_stock: 0,
+        created_at: new Date().toISOString(),
+      });
+
+      setIngredientForm(emptyIngredientForm);
+      await loadInventory();
+      alert("Đã thêm nguyên liệu mới.");
+    } catch (error) {
+      console.error("Lỗi thêm nguyên liệu:", error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Có lỗi khi thêm nguyên liệu: ${message}`);
+    }
   };
 
-  const openEditIngredient = (item: Ingredient) => {
+  const openEditIngredient = (item: IngredientRow) => {
     setEditingIngredientId(item.id);
     setEditForm({
       name: item.name,
       unit: item.unit,
-      minStock: String(item.minStock),
+      minStock: String(item.min_stock),
     });
   };
 
-  const submitEditIngredient = () => {
+  const submitEditIngredient = async () => {
     if (!editingIngredientId) return;
 
-    const oldItem = data.ingredients.find((item) => item.id === editingIngredientId);
+    const oldItem = ingredients.find((item) => item.id === editingIngredientId);
     if (!oldItem) return;
 
-    updateIngredient(editingIngredientId, {
-      name: editForm.name.trim(),
-      unit: editForm.unit.trim(),
-      minStock: Number(editForm.minStock || 0),
-      quantity: oldItem.quantity,
-      cost: oldItem.cost,
-    });
+    try {
+      await updateIngredientInSupabase(editingIngredientId, {
+        name: editForm.name.trim(),
+        unit: editForm.unit.trim(),
+        min_stock: Number(editForm.minStock || 0),
+        quantity: oldItem.quantity,
+        cost: oldItem.cost,
+      });
 
-    setEditingIngredientId(null);
-    setEditForm(emptyEditForm);
+      setEditingIngredientId(null);
+      setEditForm(emptyEditForm);
+      await loadInventory();
+      alert("Đã lưu cấu hình nguyên liệu.");
+    } catch (error) {
+      console.error("Lỗi cập nhật nguyên liệu:", error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Có lỗi khi cập nhật nguyên liệu: ${message}`);
+    }
   };
 
-  const openStockUpdate = (item: Ingredient) => {
+  const openStockUpdate = (item: IngredientRow) => {
     setStockModalId(item.id);
     setStockQuantity(String(item.quantity));
     setStockNote("Kiểm kho cuối ngày");
   };
 
-  const submitStockUpdate = () => {
+  const submitStockUpdate = async () => {
     if (!stockModalId) return;
 
-    updateIngredientStock({
-      ingredientId: stockModalId,
-      newQuantity: Number(stockQuantity || 0),
-      note: stockNote,
-    });
+    const item = ingredients.find((x) => x.id === stockModalId);
+    if (!item) return;
 
-    setStockModalId(null);
-    setStockQuantity("");
-    setStockNote("Kiểm kho cuối ngày");
+    const newQuantity = Number(stockQuantity || 0);
+    const previousQuantity = Number(item.quantity || 0);
+    const difference = newQuantity - previousQuantity;
+
+    try {
+      await updateIngredientInSupabase(item.id, {
+        name: item.name,
+        unit: item.unit,
+        quantity: newQuantity,
+        cost: item.cost,
+        min_stock: item.min_stock,
+      });
+
+      await addInventoryLogToSupabase({
+        id: `inventory-log-${Date.now()}`,
+        ingredient_id: item.id,
+        ingredient_name: item.name,
+        previous_quantity: previousQuantity,
+        new_quantity: newQuantity,
+        difference,
+        note: stockNote,
+        updated_by: currentUser?.fullName || "Quản trị viên",
+        created_at: new Date().toISOString(),
+      });
+
+      setStockModalId(null);
+      setStockQuantity("");
+      setStockNote("Kiểm kho cuối ngày");
+      await loadInventory();
+      alert("Đã cập nhật tồn kho.");
+    } catch (error) {
+      console.error("Lỗi cập nhật tồn kho:", error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Có lỗi khi cập nhật tồn kho: ${message}`);
+    }
   };
 
-  const submitReceipt = (e: React.FormEvent) => {
+  const submitReceipt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!receiptIngredientId) return;
+    if (!receiptIngredientId) {
+      alert("Vui lòng chọn nguyên liệu.");
+      return;
+    }
 
-    receiveIngredientStock({
-      ingredientId: receiptIngredientId,
-      quantityAdded: Number(receiptQuantity || 0),
-      unitCost: Number(receiptUnitCost || 0),
-      note: receiptNote,
-    });
+    const ingredient = ingredients.find((item) => item.id === receiptIngredientId);
+    if (!ingredient) {
+      alert("Không tìm thấy nguyên liệu.");
+      return;
+    }
 
-    setReceiptIngredientId("");
-    setReceiptQuantity("");
-    setReceiptUnitCost("");
-    setReceiptNote("Nhập hàng");
+    const quantityAdded = Number(receiptQuantity || 0);
+    const unitCost = Number(receiptUnitCost || 0);
+    const totalCost = quantityAdded * unitCost;
+
+    if (quantityAdded <= 0 || unitCost < 0) {
+      alert("Vui lòng nhập số lượng và đơn giá hợp lệ.");
+      return;
+    }
+
+    try {
+      await addStockReceiptToSupabase({
+        id: `stock-receipt-${Date.now()}`,
+        ingredient_id: ingredient.id,
+        ingredient_name: ingredient.name,
+        quantity_added: quantityAdded,
+        unit_cost: unitCost,
+        total_cost: totalCost,
+        note: receiptNote,
+        received_by: currentUser?.fullName || "Quản trị viên",
+        created_at: new Date().toISOString(),
+      });
+
+      await updateIngredientInSupabase(ingredient.id, {
+        name: ingredient.name,
+        unit: ingredient.unit,
+        quantity: Number(ingredient.quantity || 0) + quantityAdded,
+        cost: unitCost,
+        min_stock: ingredient.min_stock,
+      });
+
+      setReceiptIngredientId("");
+      setReceiptQuantity("");
+      setReceiptUnitCost("");
+      setReceiptNote("Nhập hàng");
+
+      await loadInventory();
+      alert("Đã ghi nhận nhập kho.");
+    } catch (error) {
+      console.error("Lỗi nhập kho:", error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Có lỗi khi nhập kho: ${message}`);
+    }
+  };
+
+  const handleDeleteIngredient = async (id: string) => {
+    const ok = confirm("Bạn có chắc muốn xóa nguyên liệu này?");
+    if (!ok) return;
+
+    try {
+      await deleteIngredientInSupabase(id);
+      await loadInventory();
+      alert("Đã xóa nguyên liệu.");
+    } catch (error) {
+      console.error("Lỗi xóa nguyên liệu:", error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Có lỗi khi xóa nguyên liệu: ${message}`);
+    }
   };
 
   const totalImportValue = useMemo(
-    () => data.stockReceipts.reduce((sum, item) => sum + item.totalCost, 0),
-    [data.stockReceipts]
+    () => stockReceipts.reduce((sum, item) => sum + Number(item.total_cost || 0), 0),
+    [stockReceipts]
   );
 
-  const totalImportTimes = data.stockReceipts.length;
+  const totalImportTimes = stockReceipts.length;
 
-  const printReceipt = (receipt: StockReceipt) => {
+  const printReceipt = (receipt: StockReceiptRow) => {
     const printWindow = window.open("", "_blank", "width=900,height=700");
     if (!printWindow) return;
 
@@ -183,14 +366,14 @@ export default function InventoryPage() {
                 </div>
                 <div>
                   <div class="label">Thoi gian</div>
-                  <div class="value">${formatDateTime(receipt.createdAt)}</div>
+                  <div class="value">${formatDateTime(receipt.created_at)}</div>
                 </div>
               </div>
 
               <div class="row">
                 <div>
                   <div class="label">Nguoi nhap</div>
-                  <div class="value">${receipt.receivedBy}</div>
+                  <div class="value">${receipt.received_by}</div>
                 </div>
                 <div>
                   <div class="label">Ghi chu</div>
@@ -210,15 +393,15 @@ export default function InventoryPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td>${receipt.ingredientName}</td>
-                  <td>${receipt.quantityAdded}</td>
-                  <td>${formatCurrency(receipt.unitCost)}</td>
-                  <td>${formatCurrency(receipt.totalCost)}</td>
+                  <td>${receipt.ingredient_name}</td>
+                  <td>${receipt.quantity_added}</td>
+                  <td>${formatCurrency(receipt.unit_cost)}</td>
+                  <td>${formatCurrency(receipt.total_cost)}</td>
                 </tr>
               </tbody>
             </table>
 
-            <div class="total">Tong thanh toan: ${formatCurrency(receipt.totalCost)}</div>
+            <div class="total">Tong thanh toan: ${formatCurrency(receipt.total_cost)}</div>
           </div>
           <script>
             window.onload = function() {
@@ -314,7 +497,7 @@ export default function InventoryPage() {
                   onChange={(e) => setReceiptIngredientId(e.target.value)}
                 >
                   <option value="">-- Chọn nguyên liệu --</option>
-                  {data.ingredients.map((item) => (
+                  {ingredients.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} ({item.unit})
                     </option>
@@ -413,15 +596,15 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.ingredients.map((item) => (
+                  {ingredients.map((item) => (
                     <tr key={item.id} className="border-b border-[#edf1ec] text-sm">
                       <td className="px-4 py-3">{item.name}</td>
                       <td className="px-4 py-3">{item.unit}</td>
                       <td className="px-4 py-3">{item.quantity}</td>
                       <td className="px-4 py-3">{formatCurrency(item.cost)}</td>
-                      <td className="px-4 py-3">{item.minStock}</td>
+                      <td className="px-4 py-3">{item.min_stock}</td>
                       <td className="px-4 py-3">
-                        {item.quantity <= item.minStock ? "Sắp hết" : "Ổn định"}
+                        {item.quantity <= item.min_stock ? "Sắp hết" : "Ổn định"}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
@@ -442,7 +625,7 @@ export default function InventoryPage() {
                           </button>
 
                           <button
-                            onClick={() => deleteIngredient(item.id)}
+                            onClick={() => handleDeleteIngredient(item.id)}
                             className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600"
                           >
                             <Trash2 size={15} />
@@ -453,7 +636,7 @@ export default function InventoryPage() {
                     </tr>
                   ))}
 
-                  {data.ingredients.length === 0 && (
+                  {ingredients.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                         Chưa có nguyên liệu nào.
@@ -603,7 +786,7 @@ export default function InventoryPage() {
 
             <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-500">Nguyên liệu đang quản lý</p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-800">{data.ingredients.length}</h3>
+              <h3 className="mt-2 text-3xl font-bold text-slate-800">{ingredients.length}</h3>
             </div>
           </div>
 
@@ -625,15 +808,15 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.stockReceipts.map((item) => (
+                  {stockReceipts.map((item) => (
                     <tr key={item.id} className="border-b border-[#edf1ec] text-sm">
                       <td className="px-4 py-3">{item.id}</td>
-                      <td className="px-4 py-3">{item.ingredientName}</td>
-                      <td className="px-4 py-3">{item.quantityAdded}</td>
-                      <td className="px-4 py-3">{formatCurrency(item.unitCost)}</td>
-                      <td className="px-4 py-3">{formatCurrency(item.totalCost)}</td>
-                      <td className="px-4 py-3">{item.receivedBy}</td>
-                      <td className="px-4 py-3">{formatDateTime(item.createdAt)}</td>
+                      <td className="px-4 py-3">{item.ingredient_name}</td>
+                      <td className="px-4 py-3">{item.quantity_added}</td>
+                      <td className="px-4 py-3">{formatCurrency(item.unit_cost)}</td>
+                      <td className="px-4 py-3">{formatCurrency(item.total_cost)}</td>
+                      <td className="px-4 py-3">{item.received_by}</td>
+                      <td className="px-4 py-3">{formatDateTime(item.created_at)}</td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => {
@@ -649,7 +832,7 @@ export default function InventoryPage() {
                     </tr>
                   ))}
 
-                  {data.stockReceipts.length === 0 && (
+                  {stockReceipts.length === 0 && (
                     <tr>
                       <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                         Chưa có phiếu nhập kho nào.
@@ -678,19 +861,19 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.inventoryLogs.map((log) => (
+                  {inventoryLogs.map((log) => (
                     <tr key={log.id} className="border-b border-[#edf1ec] text-sm">
-                      <td className="px-4 py-3">{log.ingredientName}</td>
-                      <td className="px-4 py-3">{log.previousQuantity}</td>
-                      <td className="px-4 py-3">{log.newQuantity}</td>
+                      <td className="px-4 py-3">{log.ingredient_name}</td>
+                      <td className="px-4 py-3">{log.previous_quantity}</td>
+                      <td className="px-4 py-3">{log.new_quantity}</td>
                       <td className="px-4 py-3">{log.difference}</td>
                       <td className="px-4 py-3">{log.note}</td>
-                      <td className="px-4 py-3">{log.updatedBy}</td>
-                      <td className="px-4 py-3">{formatDateTime(log.createdAt)}</td>
+                      <td className="px-4 py-3">{log.updated_by}</td>
+                      <td className="px-4 py-3">{formatDateTime(log.created_at)}</td>
                     </tr>
                   ))}
 
-                  {data.inventoryLogs.length === 0 && (
+                  {inventoryLogs.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                         Chưa có lịch sử cập nhật kho.
@@ -721,12 +904,12 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.ingredients.map((item) => {
-                    const receipts = data.stockReceipts.filter(
-                      (receipt) => receipt.ingredientId === item.id
+                  {ingredients.map((item) => {
+                    const receipts = stockReceipts.filter(
+                      (receipt) => receipt.ingredient_id === item.id
                     );
                     const totalQtyImported = receipts.reduce(
-                      (sum, receipt) => sum + receipt.quantityAdded,
+                      (sum, receipt) => sum + Number(receipt.quantity_added || 0),
                       0
                     );
 
@@ -738,7 +921,7 @@ export default function InventoryPage() {
                         </td>
                         <td className="px-4 py-3">{formatCurrency(item.cost)}</td>
                         <td className="px-4 py-3">
-                          {formatCurrency(item.quantity * item.cost)}
+                          {formatCurrency(Number(item.quantity || 0) * Number(item.cost || 0))}
                         </td>
                         <td className="px-4 py-3">{totalQtyImported}</td>
                         <td className="px-4 py-3">{receipts.length}</td>
@@ -746,7 +929,7 @@ export default function InventoryPage() {
                     );
                   })}
 
-                  {data.ingredients.length === 0 && (
+                  {ingredients.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                         Chưa có dữ liệu báo cáo nhập kho.
@@ -769,31 +952,31 @@ export default function InventoryPage() {
                 <div className="rounded-2xl border border-[#d7e2d5] p-4">
                   <p className="text-sm text-slate-500">Thời gian</p>
                   <p className="mt-1 font-semibold text-slate-800">
-                    {formatDateTime(selectedReceipt.createdAt)}
+                    {formatDateTime(selectedReceipt.created_at)}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#d7e2d5] p-4">
                   <p className="text-sm text-slate-500">Nguyên liệu</p>
                   <p className="mt-1 font-semibold text-slate-800">
-                    {selectedReceipt.ingredientName}
+                    {selectedReceipt.ingredient_name}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#d7e2d5] p-4">
                   <p className="text-sm text-slate-500">Người nhập</p>
                   <p className="mt-1 font-semibold text-slate-800">
-                    {selectedReceipt.receivedBy}
+                    {selectedReceipt.received_by}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#d7e2d5] p-4">
                   <p className="text-sm text-slate-500">Số lượng nhập</p>
                   <p className="mt-1 font-semibold text-slate-800">
-                    {selectedReceipt.quantityAdded}
+                    {selectedReceipt.quantity_added}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#d7e2d5] p-4">
                   <p className="text-sm text-slate-500">Đơn giá nhập</p>
                   <p className="mt-1 font-semibold text-slate-800">
-                    {formatCurrency(selectedReceipt.unitCost)}
+                    {formatCurrency(selectedReceipt.unit_cost)}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#d7e2d5] p-4 md:col-span-2">
@@ -805,7 +988,7 @@ export default function InventoryPage() {
               <div className="mt-4 rounded-2xl border border-[#d7e2d5] bg-[#f7faf6] p-4">
                 <div className="flex items-center justify-between text-lg font-bold text-[#3d5643]">
                   <span>Tổng thanh toán</span>
-                  <strong>{formatCurrency(selectedReceipt.totalCost)}</strong>
+                  <strong>{formatCurrency(selectedReceipt.total_cost)}</strong>
                 </div>
               </div>
             </div>

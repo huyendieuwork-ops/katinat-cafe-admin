@@ -5,28 +5,124 @@ import { Plus, Search, UserRound } from "lucide-react";
 import { CATEGORY_OPTIONS, UNIVERSITY_OPTIONS } from "@/lib/constants";
 import { useCafeStore } from "@/lib/store";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import {
+  addOrderToSupabase,
+  getCafeTables,
+  getCustomers,
+  getProducts,
+  updateCafeTableInSupabase,
+  updateProductStockInSupabase,
+} from "@/lib/db";
+
+type ProductItem = {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  stock: number;
+  image: string;
+  description: string;
+  active: boolean;
+};
+
+type CustomerItem = {
+  id: string;
+  name: string;
+  phone: string;
+  total_orders: number;
+  total_spent: number;
+  last_order_at: string | null;
+  last_order_type: string | null;
+  created_at: string;
+};
+
+type CafeTableItem = {
+  id: string;
+  code: string;
+  floor: number;
+  seats: number;
+  status: string;
+  current_order_id: string | null;
+  current_customer_name: string | null;
+  occupied_at: string | null;
+};
+
+type CartItem = {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  quantity: number;
+};
+
+type CustomerInfo = {
+  customerName: string;
+  customerPhone: string;
+  isStudent: boolean;
+  university: string;
+  orderType: "takeaway" | "dine-in";
+  floor: number | null;
+  tableId: string;
+};
+
+const emptyCustomerInfo: CustomerInfo = {
+  customerName: "",
+  customerPhone: "",
+  isStudent: false,
+  university: "",
+  orderType: "takeaway",
+  floor: null,
+  tableId: "",
+};
 
 export default function PosPage() {
-  const {
-    currentUser,
-    activeProducts,
-    cart,
-    addToCart,
-    increaseCartItem,
-    decreaseCartItem,
-    removeCartItem,
-    customerInfo,
-    setCustomerInfo,
-    matchedCustomer,
-    subtotal,
-    discount,
-    finalTotal,
-    createOrderFromCart,
-    availableTablesByFloor,
-  } = useCafeStore();
+  const { currentUser } = useCafeStore();
+
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [customers, setCustomers] = useState<CustomerItem[]>([]);
+  const [tables, setTables] = useState<CafeTableItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>(emptyCustomerInfo);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const [keyword, setKeyword] = useState("");
   const [category, setCategory] = useState("All");
+
+  async function loadPosData(showAlert = false) {
+    try {
+      setLoading(true);
+      const [productsData, customersData, tablesData] = await Promise.all([
+        getProducts(),
+        getCustomers(),
+        getCafeTables(),
+      ]);
+
+      setProducts((productsData || []).filter((item: ProductItem) => item.active));
+      setCustomers(customersData || []);
+      setTables(tablesData || []);
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu POS:", error);
+      if (showAlert) {
+        const message =
+          error instanceof Error ? error.message : JSON.stringify(error);
+        alert(`Lỗi tải dữ liệu POS: ${message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPosData(true);
+  }, []);
+
+  const matchedCustomer = useMemo(() => {
+    const phone = customerInfo.customerPhone.trim();
+    if (!phone) return null;
+    return customers.find((c) => c.phone.trim() === phone) || null;
+  }, [customers, customerInfo.customerPhone]);
 
   useEffect(() => {
     const phone = customerInfo.customerPhone.trim();
@@ -40,25 +136,185 @@ export default function PosPage() {
         }));
       }
     }
-  }, [customerInfo.customerPhone, matchedCustomer, setCustomerInfo]);
+  }, [matchedCustomer, customerInfo.customerPhone]);
 
   const filteredProducts = useMemo(() => {
-    return activeProducts.filter((product) => {
+    return products.filter((product) => {
       const matchCategory = category === "All" ? true : product.category === category;
       const matchKeyword = product.name.toLowerCase().includes(keyword.toLowerCase());
       return matchCategory && matchKeyword;
     });
-  }, [activeProducts, category, keyword]);
+  }, [products, category, keyword]);
 
   const availableTables = useMemo(() => {
     if (!customerInfo.floor) return [];
-    return availableTablesByFloor(customerInfo.floor);
-  }, [availableTablesByFloor, customerInfo.floor]);
+    return tables.filter(
+      (table) => table.floor === customerInfo.floor && table.status === "available"
+    );
+  }, [tables, customerInfo.floor]);
 
-  const handleCreateOrder = () => {
-    const result = createOrderFromCart();
-    alert(result.message);
-  };
+  const subtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart]
+  );
+
+  const discount = useMemo(
+    () => (customerInfo.isStudent ? subtotal * 0.1 : 0),
+    [customerInfo.isStudent, subtotal]
+  );
+
+  const finalTotal = subtotal - discount;
+
+  function addToCart(product: ProductItem) {
+    if (product.stock <= 0) return;
+
+    setCart((prev) => {
+      const found = prev.find((item) => item.id === product.id);
+      if (found) {
+        if (found.quantity >= product.stock) return prev;
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          quantity: 1,
+        },
+      ];
+    });
+  }
+
+  function increaseCartItem(id: string) {
+    setCart((prev) =>
+      prev.map((item) => {
+        const product = products.find((p) => p.id === item.id);
+        if (!product) return item;
+        return {
+          ...item,
+          quantity: Math.min(item.quantity + 1, product.stock),
+        };
+      })
+    );
+  }
+
+  function decreaseCartItem(id: string) {
+    setCart((prev) =>
+      prev
+        .map((item) =>
+          item.id === id ? { ...item, quantity: item.quantity - 1 } : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  }
+
+  function removeCartItem(id: string) {
+    setCart((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  async function handleCreateOrder() {
+    if (cart.length === 0) {
+      alert("Giỏ hàng đang trống.");
+      return;
+    }
+
+    if (customerInfo.isStudent && !customerInfo.university) {
+      alert("Vui lòng chọn trường đại học.");
+      return;
+    }
+
+    if (customerInfo.orderType === "dine-in") {
+      if (!customerInfo.floor) {
+        alert("Vui lòng chọn tầng.");
+        return;
+      }
+
+      if (!customerInfo.tableId) {
+        alert("Vui lòng chọn bàn.");
+        return;
+      }
+    }
+
+    for (const item of cart) {
+      const product = products.find((p) => p.id === item.id);
+      if (!product || product.stock < item.quantity) {
+        alert(`Sản phẩm "${item.name}" không đủ tồn kho.`);
+        return;
+      }
+    }
+
+    try {
+      setSubmitting(true);
+
+      const createdAt = new Date().toISOString();
+      const selectedTable =
+        customerInfo.orderType === "dine-in"
+          ? tables.find((t) => t.id === customerInfo.tableId) || null
+          : null;
+
+      const finalPhone = customerInfo.customerPhone.trim();
+      const finalName =
+        customerInfo.customerName.trim() ||
+        matchedCustomer?.name ||
+        (finalPhone ? "Khách quen" : "Khách lẻ");
+
+      const orderId = `ORD-${Date.now()}`;
+
+      await addOrderToSupabase({
+        id: orderId,
+        customer_name: finalName,
+        customer_phone: finalPhone,
+        is_student: customerInfo.isStudent,
+        university: customerInfo.isStudent ? customerInfo.university : "",
+        voucher_name: customerInfo.isStudent ? "Voucher sinh viên 10%" : "Không áp dụng",
+        discount_rate: customerInfo.isStudent ? 10 : 0,
+        subtotal,
+        discount,
+        final_total: finalTotal,
+        items: cart,
+        created_at: createdAt,
+        created_by: currentUser?.fullName || "Nhân viên",
+        order_type: customerInfo.orderType,
+        floor: customerInfo.orderType === "dine-in" ? customerInfo.floor : null,
+        table_id: customerInfo.orderType === "dine-in" ? customerInfo.tableId : null,
+        table_code: customerInfo.orderType === "dine-in" ? selectedTable?.code || null : null,
+        status: "ordering",
+        paid_at: null,
+      });
+
+      for (const item of cart) {
+        const product = products.find((p) => p.id === item.id);
+        if (!product) continue;
+        await updateProductStockInSupabase(item.id, Math.max(0, product.stock - item.quantity));
+      }
+
+      if (customerInfo.orderType === "dine-in" && customerInfo.tableId) {
+        await updateCafeTableInSupabase(customerInfo.tableId, {
+          status: "occupied",
+          current_order_id: orderId,
+          current_customer_name: finalName,
+          occupied_at: createdAt,
+        });
+      }
+
+      alert("Tạo đơn hàng thành công.");
+      setCart([]);
+      setCustomerInfo(emptyCustomerInfo);
+      await loadPosData();
+    } catch (error) {
+      console.error("Lỗi tạo đơn hàng:", error);
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Có lỗi khi tạo đơn hàng: ${message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (currentUser?.role !== "staff" && currentUser?.role !== "admin") {
     return (
@@ -97,42 +353,54 @@ export default function PosPage() {
             </select>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="overflow-hidden rounded-[22px] border border-[#d7e2d5] bg-white"
-              >
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="h-44 w-full object-cover"
-                />
-                <div className="p-4">
-                  <span className="inline-flex rounded-full bg-[#e4ece3] px-3 py-1 text-xs font-semibold text-[#3d5643]">
-                    {product.category}
-                  </span>
-                  <h3 className="mt-3 text-lg font-bold text-slate-800">{product.name}</h3>
-                  <p className="mt-2 min-h-[40px] text-sm text-slate-500">
-                    {product.description || "Chưa có mô tả"}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <strong>{formatCurrency(product.price)}</strong>
-                    <span className="text-slate-500">Tồn: {product.stock}</span>
-                  </div>
+          {loading ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-[#d7e2d5] p-6 text-slate-500">
+              Đang tải dữ liệu POS từ Supabase...
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="overflow-hidden rounded-[22px] border border-[#d7e2d5] bg-white"
+                >
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="h-44 w-full object-cover"
+                  />
+                  <div className="p-4">
+                    <span className="inline-flex rounded-full bg-[#e4ece3] px-3 py-1 text-xs font-semibold text-[#3d5643]">
+                      {product.category}
+                    </span>
+                    <h3 className="mt-3 text-lg font-bold text-slate-800">{product.name}</h3>
+                    <p className="mt-2 min-h-[40px] text-sm text-slate-500">
+                      {product.description || "Chưa có mô tả"}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <strong>{formatCurrency(product.price)}</strong>
+                      <span className="text-slate-500">Tồn: {product.stock}</span>
+                    </div>
 
-                  <button
-                    onClick={() => addToCart(product)}
-                    disabled={product.stock <= 0}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845] disabled:cursor-not-allowed disabled:bg-slate-300"
-                  >
-                    <Plus size={16} />
-                    {product.stock > 0 ? "Thêm vào đơn" : "Hết hàng"}
-                  </button>
+                    <button
+                      onClick={() => addToCart(product)}
+                      disabled={product.stock <= 0}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845] disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      <Plus size={16} />
+                      {product.stock > 0 ? "Thêm vào đơn" : "Hết hàng"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+
+              {filteredProducts.length === 0 && (
+                <div className="rounded-[22px] border border-dashed border-[#d7e2d5] p-6 text-slate-500">
+                  Không có sản phẩm phù hợp.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="h-fit rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm xl:sticky xl:top-6">
@@ -149,8 +417,7 @@ export default function PosPage() {
               </div>
 
               <p className="mb-3 text-sm text-slate-500">
-                Tên khách và số điện thoại là không bắt buộc. Nếu nhập số điện thoại đã từng mua,
-                hệ thống sẽ tự hiện tên khách.
+                Nếu nhập số điện thoại đã từng mua, hệ thống sẽ tự hiện tên khách.
               </p>
 
               <div className="space-y-3">
@@ -194,12 +461,6 @@ export default function PosPage() {
                     <p className="mt-1 text-[#4a6752]">
                       Tên trong hệ thống: <strong>{matchedCustomer.name}</strong>
                     </p>
-                  </div>
-                )}
-
-                {customerInfo.customerPhone.trim() && !matchedCustomer && (
-                  <div className="rounded-2xl border border-[#e6e1c9] bg-[#fbfaf2] px-4 py-3 text-sm text-[#6a6240]">
-                    Số điện thoại này chưa có trong danh sách khách hàng.
                   </div>
                 )}
               </div>
@@ -288,7 +549,7 @@ export default function PosPage() {
                     <option value="">-- Chọn bàn --</option>
                     {availableTables.map((table) => (
                       <option key={table.id} value={table.id}>
-                        {table.code} - {table.seats} chỗ
+                        {table.code} - Tầng {table.floor} - {table.seats} ghế
                       </option>
                     ))}
                   </select>
@@ -405,9 +666,10 @@ export default function PosPage() {
 
             <button
               onClick={handleCreateOrder}
-              className="w-full rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845]"
+              disabled={submitting}
+              className="w-full rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Tạo đơn hàng
+              {submitting ? "Đang tạo đơn..." : "Tạo đơn hàng"}
             </button>
           </div>
         </div>
