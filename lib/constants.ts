@@ -1,7 +1,7 @@
 import { CafeData, ProductCategory } from "./types";
 
-export const STORAGE_KEY = "katinat_cafe_next_v5";
-export const CURRENT_USER_KEY = "katinat_current_user_v5";
+export const STORAGE_KEY = "katinat_cafe_next_v6";
+export const CURRENT_USER_KEY = "katinat_current_user_v6";
 
 export const UNIVERSITY_OPTIONS = [
   "Đại học Kinh tế Quốc dân",
@@ -84,6 +84,7 @@ export const DEFAULT_DATA: CafeData = {
     },
   ],
   inventoryLogs: [],
+  stockReceipts: [],
   orders: [],
   customers: [],
   tables: [

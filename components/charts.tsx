@@ -37,7 +37,13 @@ export function RevenueLineChart({
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="date" />
         <YAxis />
-        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+        <Tooltip
+          formatter={(value) => {
+            const numericValue =
+              typeof value === "number" ? value : Number(value || 0);
+            return formatCurrency(numericValue);
+          }}
+        />
         <Legend />
         <Line
           type="monotone"
@@ -62,7 +68,15 @@ export function UniversityBarChart({
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="university" />
         <YAxis />
-        <Tooltip />
+        <Tooltip
+          formatter={(value, name) => {
+            const numericValue =
+              typeof value === "number" ? value : Number(value || 0);
+
+            if (name === "revenue") return formatCurrency(numericValue);
+            return numericValue;
+          }}
+        />
         <Bar dataKey="count" name="Số lượt mua" fill="#4e6b53" radius={[8, 8, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -85,7 +99,14 @@ export function CategoryPieChart({
             />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip
+          formatter={(value) => {
+            const numericValue =
+              typeof value === "number" ? value : Number(value || 0);
+            return numericValue;
+          }}
+        />
+        <Legend />
       </PieChart>
     </ResponsiveContainer>
   );
