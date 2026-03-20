@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Filter } from "lucide-react";
 import { useCafeStore } from "@/lib/store";
 import {
   getOrders,
@@ -13,6 +14,8 @@ import {
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 type OrderStatus = "ordering" | "preparing" | "served" | "paid" | "cancelled";
+type ShiftType = "all" | "morning" | "afternoon" | "evening";
+type DatePreset = "all" | "today" | "7days" | "30days";
 
 type OrderItem = {
   id: string;
@@ -54,11 +57,49 @@ function getStatusLabel(status: OrderStatus) {
   return statusOptions.find((item) => item.value === status)?.label || status;
 }
 
+function getDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function matchDatePreset(dateString: string, preset: DatePreset) {
+  if (preset === "all") return true;
+
+  const target = new Date(dateString);
+  const now = new Date();
+
+  if (preset === "today") {
+    return getDateInputValue(target) === getDateInputValue(now);
+  }
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (preset === "7days" ? 6 : 29));
+
+  return target >= start;
+}
+
+function matchShift(dateString: string, shift: ShiftType) {
+  if (shift === "all") return true;
+
+  const hour = new Date(dateString).getHours();
+
+  if (shift === "morning") return hour >= 5 && hour < 12;
+  if (shift === "afternoon") return hour >= 12 && hour < 18;
+  return hour >= 18 || hour < 5;
+}
+
 export default function OrdersPage() {
   const { currentUser } = useCafeStore();
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [exactDate, setExactDate] = useState("");
+  const [shift, setShift] = useState<ShiftType>("all");
 
   async function loadOrders(showAlert = false) {
     try {
@@ -165,6 +206,18 @@ export default function OrdersPage() {
     }
   }
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const okPreset = matchDatePreset(order.created_at, datePreset);
+      const okShift = matchShift(order.created_at, shift);
+      const okExact = exactDate
+        ? getDateInputValue(new Date(order.created_at)) === exactDate
+        : true;
+
+      return okPreset && okShift && okExact;
+    });
+  }, [orders, datePreset, exactDate, shift]);
+
   if (currentUser?.role !== "admin" && currentUser?.role !== "staff") {
     return (
       <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-6 shadow-sm">
@@ -176,10 +229,80 @@ export default function OrdersPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-800">Quản lý đơn hàng</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Khi đơn được thanh toán thì doanh thu mới được tính vào Dashboard và bàn tự về trống.
-        </p>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Quản lý đơn hàng</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Lọc theo ngày và theo ca để quản lý đơn hàng theo từng khung giờ vận hành.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Khoảng ngày
+              </label>
+              <div className="relative">
+                <Filter
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <select
+                  className="w-full rounded-2xl border border-[#d7e2d5] py-3 pl-10 pr-4 outline-none"
+                  value={datePreset}
+                  onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="today">Hôm nay</option>
+                  <option value="7days">7 ngày gần đây</option>
+                  <option value="30days">30 ngày gần đây</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Ngày cụ thể
+              </label>
+              <input
+                type="date"
+                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
+                value={exactDate}
+                onChange={(e) => setExactDate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Ca làm
+              </label>
+              <select
+                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
+                value={shift}
+                onChange={(e) => setShift(e.target.value as ShiftType)}
+              >
+                <option value="all">Tất cả ca</option>
+                <option value="morning">Ca sáng</option>
+                <option value="afternoon">Ca chiều</option>
+                <option value="evening">Ca tối</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDatePreset("all");
+                  setExactDate("");
+                  setShift("all");
+                }}
+                className="w-full rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-4 py-3 font-semibold text-slate-700"
+              >
+                Reset lọc
+              </button>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
           <div className="mt-4 rounded-2xl border border-dashed border-[#d7e2d5] p-6 text-slate-500">
@@ -201,7 +324,7 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <tr key={order.id} className="border-b border-[#edf1ec] text-sm">
                     <td className="px-4 py-3">{order.id}</td>
                     <td className="px-4 py-3">
@@ -240,10 +363,10 @@ export default function OrdersPage() {
                   </tr>
                 ))}
 
-                {orders.length === 0 && (
+                {filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
-                      Chưa có đơn hàng nào.
+                      Không có đơn hàng nào theo bộ lọc hiện tại.
                     </td>
                   </tr>
                 )}
