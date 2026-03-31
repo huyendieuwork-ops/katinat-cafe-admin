@@ -7,22 +7,36 @@ export function formatCurrency(value: number) {
 }
 
 export function formatDateTime(value: string | Date) {
-  return new Intl.DateTimeFormat("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
+  if (!value) return "N/A";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "N/A";
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "N/A";
+  }
 }
 
 export function formatDateOnly(value: string | Date) {
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
+  if (!value) return "N/A";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "N/A";
+    return new Intl.DateTimeFormat("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "N/A";
+  }
 }
 
 export function getDateKey(value: string | Date) {

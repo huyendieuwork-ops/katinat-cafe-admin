@@ -143,7 +143,13 @@ function formatDisplayWeek(start: Date, end: Date) {
 }
 
 function safePaidDate(order: OrderItem) {
-  return order.paid_at ? new Date(order.paid_at) : null;
+  if (!order || !order.paid_at) return null;
+  try {
+    const d = new Date(order.paid_at);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
 }
 
 export default function DashboardPage() {
@@ -209,7 +215,7 @@ export default function DashboardPage() {
   }, [quickRange]);
 
   const paidOrders = useMemo(
-    () => orders.filter((order) => order.status === "paid" && order.paid_at),
+    () => (Array.isArray(orders) ? orders : []).filter((order) => order.status === "paid" && order.paid_at),
     [orders]
   );
 
@@ -328,8 +334,8 @@ export default function DashboardPage() {
     const map = new Map<string, { university: string; count: number; revenue: number }>();
 
     paidOrders.forEach((order) => {
-      if (order.is_student && order.university) {
-        const key = order.university;
+      if (order?.is_student && order?.university) {
+        const key = String(order.university).trim();
         const existing = map.get(key) || { university: key, count: 0, revenue: 0 };
         existing.count += 1;
         existing.revenue += Number(order.final_total || 0);
@@ -344,9 +350,13 @@ export default function DashboardPage() {
     const map = new Map<string, number>();
 
     paidOrders.forEach((order) => {
-      order.items.forEach((item) => {
-        map.set(item.category, (map.get(item.category) || 0) + Number(item.quantity || 0));
-      });
+      if (Array.isArray(order?.items)) {
+        order.items.forEach((item) => {
+          if (item?.category) {
+            map.set(item.category, (map.get(item.category) || 0) + Number(item.quantity || 0));
+          }
+        });
+      }
     });
 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
