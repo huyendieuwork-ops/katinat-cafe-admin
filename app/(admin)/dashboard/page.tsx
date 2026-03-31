@@ -160,6 +160,7 @@ export default function DashboardPage() {
   const [tables, setTables] = useState<CafeTableItem[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMounted, setHasMounted] = useState(false);
 
   const [quickRange, setQuickRange] = useState<QuickRange>("30days");
   const [reportGrouping, setReportGrouping] = useState<RevenueGrouping>("day");
@@ -192,6 +193,8 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    setHasMounted(true);
+    console.log("Dashboard mounted on:", window.location.origin);
     loadDashboard(true);
   }, []);
 
@@ -215,7 +218,7 @@ export default function DashboardPage() {
   }, [quickRange]);
 
   const paidOrders = useMemo(
-    () => (Array.isArray(orders) ? orders : []).filter((order) => order.status === "paid" && order.paid_at),
+    () => (Array.isArray(orders) ? orders : []).filter((order) => order && order.status === "paid" && order.paid_at),
     [orders]
   );
 
@@ -237,7 +240,7 @@ export default function DashboardPage() {
   }, [paidOrders]);
 
   const storedCustomerTotalSpent = useMemo(
-    () => customers.reduce((sum, customer) => sum + Number(customer.total_spent || 0), 0),
+    () => (Array.isArray(customers) ? customers : []).reduce((sum, customer) => sum + Number(customer?.total_spent || 0), 0),
     [customers]
   );
 
@@ -256,12 +259,12 @@ export default function DashboardPage() {
   const revenue90 = revenueByDays(90);
 
   const occupiedTables = useMemo(
-    () => tables.filter((table) => table.status === "occupied").length,
+    () => (Array.isArray(tables) ? tables : []).filter((table) => table && table.status === "occupied").length,
     [tables]
   );
 
   const availableTables = useMemo(
-    () => tables.filter((table) => table.status === "available").length,
+    () => (Array.isArray(tables) ? tables : []).filter((table) => table && table.status === "available").length,
     [tables]
   );
 
@@ -363,7 +366,7 @@ export default function DashboardPage() {
   }, [paidOrders]);
 
   const lowStockProducts = useMemo(
-    () => products.filter((product) => Number(product.stock || 0) <= 10),
+    () => (Array.isArray(products) ? products : []).filter((product) => product && Number(product.stock || 0) <= 10),
     [products]
   );
 
@@ -553,6 +556,14 @@ export default function DashboardPage() {
 
     printWindow.document.close();
   };
+
+  if (!hasMounted) {
+    return (
+      <div className="rounded-[24px] border border-dashed border-[#d7e2d5] bg-white p-6 text-slate-500">
+        Khởi tạo dashboard...
+      </div>
+    );
+  }
 
   if (currentUser?.role !== "admin") {
     return (

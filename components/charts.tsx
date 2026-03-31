@@ -31,6 +31,14 @@ export function RevenueLineChart({
 }: {
   data: { date: string; revenue: number }[];
 }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="flex h-[320px] items-center justify-center rounded-2xl border border-dashed border-[#d7e2d5] text-slate-400">
+        Chưa có dữ liệu doanh thu
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={320}>
       <LineChart data={data}>
@@ -62,6 +70,14 @@ export function UniversityBarChart({
 }: {
   data: { university: string; count: number; revenue: number }[];
 }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="flex h-[320px] items-center justify-center rounded-2xl border border-dashed border-[#d7e2d5] text-slate-400">
+        Chưa có dữ liệu sinh viên
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={320}>
       <BarChart data={data}>
@@ -88,6 +104,14 @@ export function CategoryPieChart({
 }: {
   data: { name: string; value: number }[];
 }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="flex h-[320px] items-center justify-center rounded-2xl border border-dashed border-[#d7e2d5] text-slate-400">
+        Chưa có dữ liệu danh mục
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={320}>
       <PieChart>

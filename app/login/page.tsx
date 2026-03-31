@@ -18,6 +18,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log("Login attempt at:", typeof window !== "undefined" ? window.location.origin : "SSR");
       const result = login(username, password);
 
       if (!result.ok) {
