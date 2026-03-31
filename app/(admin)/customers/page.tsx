@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Trash2, Search, Save, X } from "lucide-react";
+import { Search, Trophy, Wallet, Users } from "lucide-react";
 import { useCafeStore } from "@/lib/store";
-import {
-  deleteCustomerInSupabase,
-  getCustomers,
-  updateCustomerInSupabase,
-} from "@/lib/db";
+import { getCustomers } from "@/lib/db";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 type SupabaseCustomer = {
@@ -21,14 +17,6 @@ type SupabaseCustomer = {
   created_at: string;
 };
 
-const emptyEditForm = {
-  name: "",
-  phone: "",
-  total_orders: "0",
-  total_spent: "0",
-  last_order_type: "takeaway",
-};
-
 export default function CustomersPage() {
   const { currentUser } = useCafeStore();
 
@@ -36,15 +24,11 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState("");
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [editForm, setEditForm] = useState(emptyEditForm);
-
   async function loadCustomers(showAlert = false) {
     try {
       setLoading(true);
       const data = await getCustomers();
-      setCustomers(data || []);
+      setCustomers((data || []) as SupabaseCustomer[]);
     } catch (error) {
       console.error("Lỗi tải khách hàng từ Supabase:", error);
       if (showAlert) {
@@ -75,81 +59,32 @@ export default function CustomersPage() {
 
     return customers.filter(
       (customer) =>
-        customer.name.toLowerCase().includes(q) ||
-        customer.phone.toLowerCase().includes(q)
+        (customer.name || "").toLowerCase().includes(q) ||
+        (customer.phone || "").toLowerCase().includes(q)
     );
   }, [customers, keyword]);
 
-  const startEdit = (customer: SupabaseCustomer) => {
-    setEditingId(customer.id);
-    setEditForm({
-      name: customer.name,
-      phone: customer.phone,
-      total_orders: String(customer.total_orders),
-      total_spent: String(customer.total_spent),
-      last_order_type: customer.last_order_type || "takeaway",
-    });
-  };
+  const topByOrders = useMemo(() => {
+    return [...customers]
+      .sort((a, b) => Number(b.total_orders || 0) - Number(a.total_orders || 0))
+      .slice(0, 5);
+  }, [customers]);
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm(emptyEditForm);
-  };
+  const topBySpent = useMemo(() => {
+    return [...customers]
+      .sort((a, b) => Number(b.total_spent || 0) - Number(a.total_spent || 0))
+      .slice(0, 5);
+  }, [customers]);
 
-  const saveEdit = async () => {
-    if (!editingId) return;
-
-    if (!editForm.name.trim()) {
-      alert("Vui lòng nhập tên khách hàng.");
-      return;
-    }
-
-    if (!editForm.phone.trim()) {
-      alert("Vui lòng nhập số điện thoại.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      await updateCustomerInSupabase(editingId, {
-        name: editForm.name.trim(),
-        phone: editForm.phone.trim(),
-        total_orders: Number(editForm.total_orders || 0),
-        total_spent: Number(editForm.total_spent || 0),
-        last_order_at: new Date().toISOString(),
-        last_order_type: editForm.last_order_type || "takeaway",
-      });
-
-      await loadCustomers();
-      cancelEdit();
-      alert("Cập nhật khách hàng thành công.");
-    } catch (error) {
-      console.error("Lỗi cập nhật khách hàng:", error);
-      const message =
-        error instanceof Error ? error.message : JSON.stringify(error);
-      alert(`Có lỗi khi cập nhật khách hàng: ${message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    const ok = confirm("Bạn có chắc muốn xóa khách hàng này?");
-    if (!ok) return;
-
-    try {
-      await deleteCustomerInSupabase(id);
-      await loadCustomers();
-      if (editingId === id) cancelEdit();
-      alert("Xóa khách hàng thành công.");
-    } catch (error) {
-      console.error("Lỗi xóa khách hàng:", error);
-      const message =
-        error instanceof Error ? error.message : JSON.stringify(error);
-      alert(`Có lỗi khi xóa khách hàng: ${message}`);
-    }
-  };
+  const totalCustomers = customers.length;
+  const totalVisits = customers.reduce(
+    (sum, item) => sum + Number(item.total_orders || 0),
+    0
+  );
+  const totalCustomerRevenue = customers.reduce(
+    (sum, item) => sum + Number(item.total_spent || 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -158,7 +93,7 @@ export default function CustomersPage() {
           <div>
             <h2 className="text-3xl font-bold text-slate-800">Khách hàng</h2>
             <p className="mt-2 text-slate-500">
-              Danh sách này được tạo tự động từ POS/đơn hàng khi khách để lại thông tin và đơn đã thanh toán.
+              Danh sách này được cập nhật tự động khi đơn hàng đã thanh toán và khách có để lại số điện thoại.
             </p>
           </div>
 
@@ -179,125 +114,108 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {editingId && (
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
-          <h3 className="text-xl font-bold text-slate-800">Chỉnh sửa khách hàng</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Chỉ dùng khi cần chỉnh lại thông tin hiển thị, không phải luồng thêm khách chính.
-          </p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="flex items-center gap-3">
+            <Users className="text-[#4e6b53]" />
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Tên khách hàng
-              </label>
-              <input
-                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
+              <p className="text-sm text-slate-500">Tổng khách hàng</p>
+              <h3 className="text-3xl font-bold text-slate-800">{totalCustomers}</h3>
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Số điện thoại
-              </label>
-              <input
-                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
-                value={editForm.phone}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, phone: e.target.value }))
-                }
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Hình thức mua gần nhất
-              </label>
-              <select
-                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
-                value={editForm.last_order_type}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    last_order_type: e.target.value,
-                  }))
-                }
-              >
-                <option value="takeaway">Mang về</option>
-                <option value="dine-in">Ở lại</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Tổng số đơn
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
-                value={editForm.total_orders}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    total_orders: e.target.value.replace(/\D/g, ""),
-                  }))
-                }
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Tổng chi tiêu
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
-                value={editForm.total_spent}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    total_spent: e.target.value.replace(/\D/g, ""),
-                  }))
-                }
-              />
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              onClick={saveEdit}
-              disabled={saving}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              <Save size={16} />
-              {saving ? "Đang lưu..." : "Lưu thay đổi"}
-            </button>
-
-            <button
-              onClick={cancelEdit}
-              className="inline-flex items-center gap-2 rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-4 py-3 font-semibold text-slate-700"
-            >
-              <X size={16} />
-              Hủy
-            </button>
           </div>
         </div>
-      )}
+
+        <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Trophy className="text-[#4e6b53]" />
+            <div>
+              <p className="text-sm text-slate-500">Tổng lượt ghé</p>
+              <h3 className="text-3xl font-bold text-slate-800">{totalVisits}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Wallet className="text-[#4e6b53]" />
+            <div>
+              <p className="text-sm text-slate-500">Tổng chi tiêu khách hàng</p>
+              <h3 className="text-3xl font-bold text-slate-800">
+                {formatCurrency(totalCustomerRevenue)}
+              </h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+          <h3 className="text-xl font-bold text-slate-800">Top khách ghé nhiều nhất</h3>
+          <div className="mt-4 space-y-3">
+            {topByOrders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d7e2d5] p-4 text-slate-500">
+                Chưa có dữ liệu khách hàng.
+              </div>
+            ) : (
+              topByOrders.map((customer, index) => (
+                <div
+                  key={customer.id}
+                  className="flex items-center justify-between rounded-2xl border border-[#d7e2d5] p-4"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      #{index + 1} - {customer.name || "Khách hàng"}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {customer.phone || "Không có số điện thoại"}
+                    </p>
+                  </div>
+                  <strong className="text-[#3d5643]">
+                    {customer.total_orders} lượt
+                  </strong>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+          <h3 className="text-xl font-bold text-slate-800">Top khách chi nhiều nhất</h3>
+          <div className="mt-4 space-y-3">
+            {topBySpent.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d7e2d5] p-4 text-slate-500">
+                Chưa có dữ liệu khách hàng.
+              </div>
+            ) : (
+              topBySpent.map((customer, index) => (
+                <div
+                  key={customer.id}
+                  className="flex items-center justify-between rounded-2xl border border-[#d7e2d5] p-4"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      #{index + 1} - {customer.name || "Khách hàng"}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {customer.phone || "Không có số điện thoại"}
+                    </p>
+                  </div>
+                  <strong className="text-[#3d5643]">
+                    {formatCurrency(Number(customer.total_spent || 0))}
+                  </strong>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Danh sách khách hàng</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Dữ liệu đang load trực tiếp từ Supabase.
+              Dữ liệu đang load trực tiếp từ Supabase. Tab này chỉ xem, không chỉnh sửa.
             </p>
           </div>
 
@@ -334,10 +252,10 @@ export default function CustomersPage() {
                     </p>
 
                     <div className="mt-4 grid gap-2 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-4">
-                      <p>Tổng đơn: {customer.total_orders}</p>
+                      <p>Số lần ghé: {customer.total_orders}</p>
                       <p>Tổng chi tiêu: {formatCurrency(Number(customer.total_spent || 0))}</p>
                       <p>
-                        Hình thức gần nhất:{" "}
+                        Lần mua gần nhất:{" "}
                         {customer.last_order_type === "dine-in" ? "Ở lại" : "Mang về"}
                       </p>
                       <p>
@@ -349,22 +267,8 @@ export default function CustomersPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => startEdit(customer)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-3 py-2 text-sm font-semibold text-slate-700"
-                    >
-                      <Pencil size={15} />
-                      Sửa
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(customer.id)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600"
-                    >
-                      <Trash2 size={15} />
-                      Xóa
-                    </button>
+                  <div className="rounded-2xl bg-[#eef4ee] px-4 py-2 text-sm font-semibold text-[#3d5643]">
+                    Khách đã đồng bộ từ đơn thanh toán
                   </div>
                 </div>
               </div>
