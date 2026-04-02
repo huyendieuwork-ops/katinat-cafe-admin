@@ -234,17 +234,16 @@ export default function StockReceiptsTab() {
         const importTotalValue = line.quantity * line.unitCost;
         let newAverageCost = ingredient.cost;
         if (newQuantity > 0) {
-          newAverageCost = (previousTotalValue + importTotalValue) / newQuantity;
+          newAverageCost = Math.round((previousTotalValue + importTotalValue) / newQuantity);
         }
 
         await addStockReceiptToSupabase({
-          id: `${receiptGroupCode}-${ingredient.id}`,
           receipt_group_code: receiptGroupCode,
           ingredient_id: ingredient.id,
           ingredient_name: ingredient.name,
           quantity_added: line.quantity,
           unit_cost: line.unitCost,
-          total_cost: line.totalCost,
+          total_cost: Math.round(line.totalCost),
           note: receiptNote,
           received_by: currentUser?.fullName || "Quản trị viên",
           created_at: createdAt,
@@ -255,13 +254,12 @@ export default function StockReceiptsTab() {
         await updateIngredientInSupabase(ingredient.id, {
           name: ingredient.name,
           unit: ingredient.unit,
-          quantity: newQuantity,
-          cost: newAverageCost, // Cập nhật giá vốn trung bình
+          quantity: Math.round(newQuantity),
+          cost: Math.round(newAverageCost),
           min_stock: ingredient.min_stock,
         });
 
         await addInventoryLogToSupabase({
-          id: `inventory-log-${Date.now()}-${ingredient.id}`,
           ingredient_id: ingredient.id,
           ingredient_name: ingredient.name,
           previous_quantity: previousQuantity,
@@ -274,7 +272,6 @@ export default function StockReceiptsTab() {
       }
 
       await addDeliveryNoteToSupabase({
-        id: `delivery-${Date.now()}`,
         receipt_group_code: receiptGroupCode,
         supplier_id: supplier.id,
         supplier_name: supplier.name,
@@ -287,7 +284,6 @@ export default function StockReceiptsTab() {
       });
 
       await addPaymentDocumentToSupabase({
-        id: `payment-${Date.now()}`,
         receipt_group_code: receiptGroupCode,
         supplier_id: supplier.id,
         supplier_name: supplier.name,
@@ -322,8 +318,10 @@ export default function StockReceiptsTab() {
       await loadInventory(false);
       setSelectedReceiptCode(receiptGroupCode);
       alert("Đã ghi nhận phiếu nhập kho, phiếu giao hàng và chứng từ thanh toán thành công.");
-    } catch (error) {
-      alert(`Có lỗi khi nhập kho: ${error}`);
+    } catch (error: any) {
+      console.error("Lỗi nhập kho:", error);
+      const message = error?.message || JSON.stringify(error);
+      alert(`Có lỗi khi nhập kho: ${message}`);
     } finally {
       setSubmittingReceipt(false);
     }
@@ -452,13 +450,18 @@ export default function StockReceiptsTab() {
                 <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.payment_code} onChange={(e) => setPaymentForm((prev) => ({ ...prev, payment_code: e.target.value }))} placeholder="Tự sinh nếu rỗng" />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Hình thức thanh toán</label>
-                <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.payment_method} onChange={(e) => setPaymentForm((prev) => ({ ...prev, payment_method: e.target.value }))}>
-                  <option value="cash">Tiền mặt</option>
-                  <option value="bank_transfer">Chuyển khoản</option>
-                  <option value="debt">Công nợ</option>
-                </select>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Số tiền thanh toán</label>
+                <input type="text" inputMode="numeric" className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.amount} onChange={(e) => setPaymentForm((prev) => ({ ...prev, amount: e.target.value.replace(/\D/g, "") }))} placeholder={String(receiptGrandTotal)} />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Hình thức thanh toán</label>
+              <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.payment_method} onChange={(e) => setPaymentForm((prev) => ({ ...prev, payment_method: e.target.value }))}>
+                <option value="cash">Tiền mặt</option>
+                <option value="bank_transfer">Chuyển khoản</option>
+                <option value="debt">Công nợ</option>
+              </select>
             </div>
 
             <div className="space-y-4">

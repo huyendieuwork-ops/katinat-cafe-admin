@@ -240,7 +240,11 @@ export async function deleteIngredientInSupabase(id: string) {
  * ========================= */
 
 export async function addInventoryLogToSupabase(payload: any) {
-  const { error } = await supabase.from("inventory_logs").insert(payload);
+  const data = {
+    id: payload.id || `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    ...payload,
+  };
+  const { error } = await supabase.from("inventory_logs").insert(data);
   if (error) throw error;
 }
 
@@ -249,8 +253,8 @@ export async function addInventoryLogToSupabase(payload: any) {
  * ========================= */
 
 export async function addStockReceiptToSupabase(payload: any) {
-  const { error } = await supabase.from("stock_receipts").insert({
-    id: payload.id,
+  const data: any = {
+    id: payload.id || `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     receipt_group_code:
       payload.receipt_group_code ??
       payload.receipt_group_id ??
@@ -266,8 +270,9 @@ export async function addStockReceiptToSupabase(payload: any) {
     created_at: payload.created_at ?? new Date().toISOString(),
     supplier_id: payload.supplier_id ?? null,
     supplier_name: payload.supplier_name ?? null,
-  });
+  };
 
+  const { error } = await supabase.from("stock_receipts").insert(data);
   if (error) throw error;
 }
 
@@ -349,20 +354,9 @@ export async function deleteSupplierInSupabase(id: string) {
  * DELIVERY NOTES
  * ========================= */
 
-export async function addDeliveryNoteToSupabase(payload: {
-  id: string;
-  receipt_group_code: string;
-  supplier_id?: string | null;
-  supplier_name?: string | null;
-  delivery_code: string;
-  delivered_at: string;
-  delivered_by: string;
-  vehicle_number?: string | null;
-  note?: string | null;
-  created_at?: string;
-}) {
-  const { error } = await supabase.from("delivery_notes").insert({
-    id: payload.id,
+export async function addDeliveryNoteToSupabase(payload: any) {
+  const data: any = {
+    id: payload.id || `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     receipt_group_code: payload.receipt_group_code,
     supplier_id: payload.supplier_id ?? null,
     supplier_name: payload.supplier_name ?? null,
@@ -372,8 +366,9 @@ export async function addDeliveryNoteToSupabase(payload: {
     vehicle_number: payload.vehicle_number ?? null,
     note: payload.note ?? null,
     created_at: payload.created_at ?? new Date().toISOString(),
-  });
+  };
 
+  const { error } = await supabase.from("delivery_notes").insert(data);
   if (error) throw error;
 }
 
@@ -401,21 +396,9 @@ export async function deleteDeliveryNoteByReceiptGroupCodeInSupabase(
  * PAYMENT DOCUMENTS
  * ========================= */
 
-export async function addPaymentDocumentToSupabase(payload: {
-  id: string;
-  receipt_group_code: string;
-  supplier_id?: string | null;
-  supplier_name?: string | null;
-  payment_code: string;
-  payment_method: string;
-  amount: number;
-  payment_date: string;
-  reference_number?: string | null;
-  note?: string | null;
-  created_at?: string;
-}) {
-  const { error } = await supabase.from("payment_documents").insert({
-    id: payload.id,
+export async function addPaymentDocumentToSupabase(payload: any) {
+  const data: any = {
+    id: payload.id || `payment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     receipt_group_code: payload.receipt_group_code,
     supplier_id: payload.supplier_id ?? null,
     supplier_name: payload.supplier_name ?? null,
@@ -426,8 +409,9 @@ export async function addPaymentDocumentToSupabase(payload: {
     reference_number: payload.reference_number ?? null,
     note: payload.note ?? null,
     created_at: payload.created_at ?? new Date().toISOString(),
-  });
+  };
 
+  const { error } = await supabase.from("payment_documents").insert(data);
   if (error) throw error;
 }
 
