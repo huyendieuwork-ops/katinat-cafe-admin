@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Filter } from "lucide-react";
+import { Filter, Eye } from "lucide-react";
 import { useCafeStore } from "@/lib/store";
 import {
   getOrders,
@@ -12,12 +12,14 @@ import {
   upsertCustomerAfterPayment,
 } from "@/lib/db";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import OrderDetailModal from "./components/OrderDetailModal";
+import OrderInvoicePrint from "./components/OrderInvoicePrint";
 
 type OrderStatus = "ordering" | "preparing" | "served" | "paid" | "cancelled";
 type ShiftType = "all" | "morning" | "afternoon" | "evening";
 type DatePreset = "all" | "today" | "7days" | "30days";
 
-type OrderItem = {
+export type OrderItem = {
   id: string;
   customer_name: string;
   customer_phone: string;
@@ -34,6 +36,9 @@ type OrderItem = {
     category: string;
     price: number;
     quantity: number;
+    size?: string;
+    topping?: string;
+    note?: string;
   }[];
   created_at: string;
   created_by: string;
@@ -100,6 +105,12 @@ export default function OrdersPage() {
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [exactDate, setExactDate] = useState("");
   const [shift, setShift] = useState<ShiftType>("all");
+
+  const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   async function loadOrders(showAlert = false) {
     try {
@@ -320,7 +331,8 @@ export default function OrdersPage() {
                   <th className="px-4 py-3">Bàn</th>
                   <th className="px-4 py-3">Trạng thái</th>
                   <th className="px-4 py-3">Tổng tiền</th>
-                  <th className="rounded-r-2xl px-4 py-3">Cập nhật</th>
+                  <th className="px-4 py-3">Cập nhật</th>
+                  <th className="rounded-r-2xl px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -360,12 +372,21 @@ export default function OrdersPage() {
                         ))}
                       </select>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="inline-flex items-center justify-center rounded-xl bg-slate-100 p-2 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                        title="Xem chi tiết"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
 
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
                       Không có đơn hàng nào theo bộ lọc hiện tại.
                     </td>
                   </tr>
@@ -375,6 +396,15 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      <OrderDetailModal
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        order={selectedOrder}
+        onPrint={handlePrint}
+      />
+
+      <OrderInvoicePrint order={selectedOrder} />
     </div>
   );
 }
