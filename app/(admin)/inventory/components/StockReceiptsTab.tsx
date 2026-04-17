@@ -14,6 +14,7 @@ import {
   deleteDeliveryNoteByReceiptGroupCodeInSupabase,
   deleteStockReceiptGroupInSupabase,
 } from "@/lib/db";
+import StockReceiptPrint from "./StockReceiptPrint";
 
 type ReceiptLine = {
   lineId: string;
@@ -71,6 +72,9 @@ export default function StockReceiptsTab() {
   const [receiptNote, setReceiptNote] = useState("Nhập hàng");
   const [selectedReceiptCode, setSelectedReceiptCode] = useState<string | null>(null);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
+
+  const [selectedReceiptCodesForPrint, setSelectedReceiptCodesForPrint] = useState<string[]>([]);
+  const [receiptsToPrint, setReceiptsToPrint] = useState<any[]>([]);
 
   const [deliveryForm, setDeliveryForm] = useState({
     delivery_code: "",
@@ -375,6 +379,41 @@ export default function StockReceiptsTab() {
     }
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedReceiptCodesForPrint(groupedReceipts.map(r => r.receipt_group_code));
+    } else {
+      setSelectedReceiptCodesForPrint([]);
+    }
+  };
+
+  const handleSelectOne = (code: string, checked: boolean) => {
+    if (checked) {
+      setSelectedReceiptCodesForPrint(prev => [...prev, code]);
+    } else {
+      setSelectedReceiptCodesForPrint(prev => prev.filter(c => c !== code));
+    }
+  };
+
+  const handlePrintMultiple = () => {
+    if (selectedReceiptCodesForPrint.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 phiếu nhập để in.");
+      return;
+    }
+    const toPrint = groupedReceipts.filter(r => selectedReceiptCodesForPrint.includes(r.receipt_group_code));
+    setReceiptsToPrint(toPrint);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handlePrintSingle = (receipt: any) => {
+    setReceiptsToPrint([receipt]);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
@@ -521,12 +560,33 @@ export default function StockReceiptsTab() {
 
         <div className="space-y-6">
           <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-800">Lịch sử phiếu nhập</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800">Lịch sử phiếu nhập</h2>
+              {selectedReceiptCodesForPrint.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handlePrintMultiple}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-700"
+                >
+                  <Printer size={16} />
+                  In phiếu đã chọn ({selectedReceiptCodesForPrint.length})
+                </button>
+              )}
+            </div>
+            
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full border-collapse">
                 <thead>
                   <tr className="bg-[#eff4ef] text-left text-sm text-slate-700">
-                    <th className="rounded-l-2xl px-4 py-3">Mã phiếu</th>
+                    <th className="rounded-l-2xl px-4 py-3 w-10">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-[#d7e2d5] text-[#4e6b53] focus:ring-[#4e6b53]"
+                        checked={selectedReceiptCodesForPrint.length === groupedReceipts.length && groupedReceipts.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                    </th>
+                    <th className="px-4 py-3">Mã phiếu</th>
                     <th className="px-4 py-3">Nhà cung cấp</th>
                     <th className="px-4 py-3">Tổng tiền</th>
                     <th className="px-4 py-3">Thời gian</th>
@@ -535,10 +595,18 @@ export default function StockReceiptsTab() {
                 </thead>
                 <tbody>
                   {groupedReceipts.length === 0 && (
-                    <tr><td colSpan={5} className="py-8 text-center text-slate-500">Không tìm thấy phiếu nhập nào</td></tr>
+                    <tr><td colSpan={6} className="py-8 text-center text-slate-500">Không tìm thấy phiếu nhập nào</td></tr>
                   )}
                   {groupedReceipts.map((item) => (
                     <tr key={item.receipt_group_code} className="border-b border-[#edf1ec] text-sm md:text-base">
+                      <td className="px-4 py-3">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-[#d7e2d5] text-[#4e6b53] focus:ring-[#4e6b53]"
+                          checked={selectedReceiptCodesForPrint.includes(item.receipt_group_code)}
+                          onChange={(e) => handleSelectOne(item.receipt_group_code, e.target.checked)}
+                        />
+                      </td>
                       <td className="px-4 py-3 font-semibold text-slate-800">{item.receipt_group_code}</td>
                       <td className="px-4 py-3">{item.supplier_name || "-"}</td>
                       <td className="px-4 py-3 text-red-600 font-semibold">{formatCurrency(item.total_amount)}</td>
@@ -546,6 +614,7 @@ export default function StockReceiptsTab() {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <button onClick={() => setSelectedReceiptCode(item.receipt_group_code)} className="inline-flex items-center gap-2 rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-[#dfeada]"><ReceiptText size={15} />Chi tiết</button>
+                          <button onClick={() => handlePrintSingle(item)} className="inline-flex items-center gap-2 rounded-2xl border border-[#d7e2d5] bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 shadow-sm"><Printer size={15} />In</button>
                           <button onClick={() => handleDeleteReceiptGroup(item.receipt_group_code)} className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600"><Trash2 size={15} />Rollback</button>
                         </div>
                       </td>
@@ -593,6 +662,8 @@ export default function StockReceiptsTab() {
           )}
         </div>
       </div>
+      
+      <StockReceiptPrint receipts={receiptsToPrint} />
     </div>
   );
 }

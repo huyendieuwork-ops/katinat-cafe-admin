@@ -87,9 +87,8 @@ export default function AdminShell({
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7f3]">
-      <div className="grid min-h-screen xl:grid-cols-[300px_1fr]">
-        <aside className="border-r border-[#d7e2d5] bg-[linear-gradient(180deg,#1f3527_0%,#2d4833_45%,#44604a_100%)] p-6 text-white">
+    <div className="flex min-h-screen bg-[#f5f7f3]">
+      <aside className="sticky top-0 h-screen w-[280px] xl:w-[300px] shrink-0 overflow-y-auto border-r border-[#d7e2d5] bg-[linear-gradient(180deg,#1f3527_0%,#2d4833_45%,#44604a_100%)] p-5 xl:p-6 text-white flex flex-col">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-white/12 backdrop-blur">
               <Coffee size={28} />
@@ -140,17 +139,18 @@ export default function AdminShell({
             })}
           </nav>
 
-          <button
-            onClick={handleLogout}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#6f8f70] px-4 py-4 text-lg font-semibold text-white hover:bg-[#628263]"
-          >
-            <LogOut size={20} />
-            Đăng xuất
-          </button>
+          <div className="mt-auto pt-8">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#6f8f70] px-4 py-4 text-lg font-semibold text-white hover:bg-[#628263]"
+            >
+              <LogOut size={20} />
+              Đăng xuất
+            </button>
+          </div>
         </aside>
 
-        <main className="p-6 xl:p-8">{children}</main>
+        <main className="flex-1 w-full min-w-0 p-6 xl:p-8">{children}</main>
       </div>
-    </div>
   );
 }
