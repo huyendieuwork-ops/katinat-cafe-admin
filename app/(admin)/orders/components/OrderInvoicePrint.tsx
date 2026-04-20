@@ -36,9 +36,9 @@ const OrderInvoicePrint = forwardRef<HTMLDivElement, OrderInvoicePrintProps>(
         <div className="w-[80mm] bg-white p-4 text-black font-sans mx-auto text-sm leading-snug">
           {/* Header */}
           <div className="text-center mb-4 border-b border-dashed border-gray-400 pb-3">
-            <h1 className="text-2xl font-bold mb-1">KATINAT</h1>
+            <h1 className="text-2xl font-bold mb-1">LUNA</h1>
             <p className="text-xs text-gray-600">HỘI THOẠI CỦA NHỮNG VỊ TRÀ</p>
-            <p className="text-xs text-gray-600">Đ/c: 123 Đường ABC, Quận XYZ, TP.HCM</p>
+            <p className="text-xs text-gray-600">Đ/c: 67 Phố Lê Thanh Nghị, Đồng Tâm, Hà Nội</p>
             <p className="text-xs text-gray-600">Hotline: 1900 123 456</p>
           </div>
 
@@ -140,7 +140,7 @@ const OrderInvoicePrint = forwardRef<HTMLDivElement, OrderInvoicePrintProps>(
           {/* Footer */}
           <div className="text-center text-xs text-gray-600 space-y-1">
             <p className="font-medium">Cảm ơn & Hẹn gặp lại quý khách!</p>
-            <p>Pass wifi: katinat2024</p>
+            <p>Pass wifi: luna2024</p>
           </div>
         </div>
       </div>

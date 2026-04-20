@@ -39,9 +39,9 @@ const StockReceiptPrint = forwardRef<HTMLDivElement, StockReceiptPrintProps>(
               {/* Header */}
               <div className="flex justify-between items-start mb-6 border-b border-gray-400 pb-4">
                 <div>
-                  <h1 className="text-2xl font-bold uppercase mb-1">KATINAT</h1>
+                  <h1 className="text-2xl font-bold uppercase mb-1">LUNA</h1>
                   <p className="text-sm font-semibold">Quản lý Kho Hiện Đại</p>
-                  <p className="text-xs text-gray-600 mt-1">Hệ thống quản lý chuỗi Katinat Cafe</p>
+                  <p className="text-xs text-gray-600 mt-1">Hệ thống quản lý chuỗi Luna Cafe</p>
                 </div>
                 <div className="text-right">
                   <h2 className="text-xl font-bold uppercase">Phiếu Nhập Kho</h2>

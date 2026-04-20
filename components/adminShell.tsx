@@ -94,7 +94,7 @@ export default function AdminShell({
               <Coffee size={28} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Katinat Admin</h1>
+              <h1 className="text-2xl font-bold">Luna Admin</h1>
               <p className="text-white/80">Cafe Management</p>
             </div>
           </div>

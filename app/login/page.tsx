@@ -42,7 +42,7 @@ export default function LoginPage() {
                 <Coffee size={30} />
               </div>
               <h1 className="mt-6 text-4xl font-bold leading-tight">
-                KATINAT
+                LUNA
                 <br />
                 Cafe Admin
               </h1>
