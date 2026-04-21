@@ -123,8 +123,8 @@ export default function StockExportsTab() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[430px_1fr]">
-      <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+    <div className="flex flex-col gap-6">
+      <div className="w-full flex-col rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800">Tạo Phiếu Xuất Kho</h2>
         <p className="mt-1 text-sm text-slate-500">Dùng để xuất kho thủ công: hư hỏng, nội bộ, điều chuyển, hoặc cân bằng hao hụt.</p>
         
@@ -144,18 +144,18 @@ export default function StockExportsTab() {
                     )}
                   </div>
                   <div className="space-y-3">
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">Nguyên liệu</label>
-                      <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={line.ingredientId} onChange={(e) => updateExportLine(line.lineId, "ingredientId", e.target.value)}>
-                        <option value="">-- Chọn nguyên liệu --</option>
-                        {ingredients.map((item) => (
-                          <option key={item.id} value={item.id} disabled={item.quantity <= 0}>
-                            {item.name} ({item.unit}) - Tồn hợp lệ: {item.quantity}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Nguyên liệu</label>
+                        <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={line.ingredientId} onChange={(e) => updateExportLine(line.lineId, "ingredientId", e.target.value)}>
+                          <option value="">-- Chọn nguyên liệu --</option>
+                          {ingredients.map((item) => (
+                            <option key={item.id} value={item.id} disabled={item.quantity <= 0}>
+                              {item.name} ({item.unit}) - Tồn hợp lệ: {item.quantity}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Lý do xuất</label>
                         <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={line.reason} onChange={(e) => updateExportLine(line.lineId, "reason", e.target.value)}>
@@ -171,7 +171,7 @@ export default function StockExportsTab() {
                           {selectedIngredient && <span className="text-xs text-slate-400 font-normal mt-0.5">(Max {maxStock})</span>}
                         </label>
                         <input type="text" inputMode="numeric" className={`w-full rounded-2xl border ${isOverStock ? 'border-red-500' : 'border-[#d7e2d5]'} px-4 py-3 outline-none`} value={line.quantity} onChange={(e) => updateExportLine(line.lineId, "quantity", e.target.value.replace(/\D/g, ""))} />
-                        {isOverStock && <p className="text-red-500 text-xs mt-1 font-medium">Xuất quá tồn kho (Strict mode)</p>}
+                        {isOverStock && <p className="text-red-500 text-xs mt-1 font-medium">Xuất quá tồn kho</p>}
                       </div>
                     </div>
                   </div>
@@ -193,7 +193,7 @@ export default function StockExportsTab() {
         </form>
       </div>
 
-      <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+      <div className="min-w-0 flex-1 rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800">Nhật ký xuất kho</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full border-collapse">

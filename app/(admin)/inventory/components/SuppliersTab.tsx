@@ -109,35 +109,33 @@ export default function SuppliersTab() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-      <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+    <div className="flex flex-col gap-6">
+      <div className="w-full rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800">Quản lý nhà cung cấp</h2>
         <p className="mt-1 text-sm text-slate-500">Nhà cung cấp được liên kết trực tiếp với phiếu nhập, phiếu giao hàng và chứng từ thanh toán.</p>
         
         <form onSubmit={submitSupplier} className="mt-4 space-y-4">
-          <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.name} onChange={(e) => setSupplierForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Tên nhà cung cấp" />
-          <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.contact_name} onChange={(e) => setSupplierForm((prev) => ({ ...prev, contact_name: e.target.value }))} placeholder="Người liên hệ" />
-          
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.name} onChange={(e) => setSupplierForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Tên nhà cung cấp" />
+            <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.contact_name} onChange={(e) => setSupplierForm((prev) => ({ ...prev, contact_name: e.target.value }))} placeholder="Người liên hệ" />
             <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.phone} onChange={(e) => setSupplierForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Số điện thoại" />
             <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.email} onChange={(e) => setSupplierForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" />
+            <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none lg:col-span-2" value={supplierForm.address} onChange={(e) => setSupplierForm((prev) => ({ ...prev, address: e.target.value }))} placeholder="Địa chỉ" />
           </div>
-          
-          <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.address} onChange={(e) => setSupplierForm((prev) => ({ ...prev, address: e.target.value }))} placeholder="Địa chỉ" />
           <textarea className="min-h-[96px] w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierForm.notes} onChange={(e) => setSupplierForm((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Ghi chú hợp đồng / thời gian giao hàng / công nợ" />
           
           <div className="flex gap-3">
-            <button type="submit" className="rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845]">
+            <button type="submit" className="rounded-2xl bg-[#4e6b53] px-6 py-3 font-semibold text-white hover:bg-[#3f5845]">
               {editingSupplierId ? "Cập nhật NCC" : "Thêm NCC"}
             </button>
-            <button type="button" onClick={() => { setSupplierForm(emptySupplierForm); setEditingSupplierId(null); }} className="rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-4 py-3 font-semibold text-slate-700">
+            <button type="button" onClick={() => { setSupplierForm(emptySupplierForm); setEditingSupplierId(null); }} className="rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-6 py-3 font-semibold text-slate-700 hover:bg-[#dfeada]">
               Reset
             </button>
           </div>
         </form>
       </div>
 
-      <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+      <div className="w-full rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800">Danh sách nhà cung cấp</h2>
         <div className="mt-4">
           <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={supplierSearch} onChange={(e) => setSupplierSearch(e.target.value)} placeholder="Tìm kiếm theo Tên, SĐT, Email..." />

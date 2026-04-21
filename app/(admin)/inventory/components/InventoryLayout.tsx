@@ -97,9 +97,8 @@ export default function InventoryLayout() {
         </div>
       </div>
 
-      <div className="flex flex-row gap-6 items-start">
-        <div className="sticky top-6 flex w-64 flex-col gap-2 rounded-[24px] border border-[#d7e2d5] bg-white p-4 shadow-sm shrink-0 max-h-[calc(100vh-48px)] overflow-y-auto">
-          <h2 className="mb-2 px-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Tính năng</h2>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center gap-2 overflow-x-auto pb-4 pt-2 hide-scrollbar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -107,20 +106,20 @@ export default function InventoryLayout() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-3 w-full rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border px-5 py-3 text-sm font-semibold transition ${
                   active
                     ? "border-[#4e6b53] bg-[#4e6b53] text-white shadow-md"
-                    : "border-transparent bg-transparent text-slate-600 hover:bg-[#f7faf6] hover:text-[#4e6b53]"
+                    : "border-[#d7e2d5] bg-white text-slate-600 shadow-sm hover:bg-[#f7faf6] hover:text-[#4e6b53]"
                 }`}
               >
-                <Icon size={18} />
-                <span className="text-left">{tab.label}</span>
+                <Icon size={16} />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        <div className="flex-1 w-full min-w-0 transition-all animate-in fade-in duration-300 overflow-x-hidden">
+        <div className="w-full min-w-0 transition-all animate-in fade-in duration-300">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "ingredients" && <IngredientsTab />}
           {activeTab === "suppliers" && <SuppliersTab />}

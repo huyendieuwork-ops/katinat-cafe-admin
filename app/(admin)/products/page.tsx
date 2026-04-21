@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { CATEGORY_OPTIONS } from "@/lib/constants";
 import { Product } from "@/lib/types";
 import { useCafeStore } from "@/lib/store";
@@ -43,6 +43,13 @@ export default function ProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   async function loadProducts(showAlert = false) {
     try {
@@ -313,7 +320,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-800">Danh sách sản phẩm</h2>
               <p className="mt-1 text-sm text-slate-500">
@@ -321,12 +328,27 @@ export default function ProductsPage() {
               </p>
             </div>
 
-            <button
-              onClick={() => loadProducts(true)}
-              className="rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-4 py-2 text-sm font-semibold text-slate-700"
-            >
-              Tải lại
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Search size={16} className="text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm sản phẩm..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full rounded-2xl border border-[#d7e2d5] bg-white py-2 pl-10 pr-4 text-sm outline-none focus:border-[#4e6b53] focus:ring-1 focus:ring-[#4e6b53]"
+                />
+              </div>
+              <button
+                onClick={() => loadProducts(true)}
+                className="flex flex-shrink-0 items-center justify-center rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Tải lại dữ liệu"
+              >
+                Tải lại
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -335,62 +357,78 @@ export default function ProductsPage() {
             </div>
           ) : (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="overflow-hidden rounded-[22px] border border-[#d7e2d5] bg-white"
+                  className="flex flex-col overflow-hidden rounded-[22px] border border-[#d7e2d5] bg-white transition-shadow hover:shadow-md"
                 >
                   <img
                     src={product.image}
                     alt={product.name}
                     className="h-48 w-full object-cover"
                   />
-                  <div className="p-4">
-                    <span className="inline-flex rounded-full bg-[#e4ece3] px-3 py-1 text-xs font-semibold text-[#3d5643]">
-                      {product.category}
-                    </span>
+                  <div className="flex flex-1 flex-col p-4">
+                    <div>
+                      <span className="inline-flex rounded-full bg-[#e4ece3] px-3 py-1 text-[11px] font-semibold tracking-wider text-[#3d5643] uppercase">
+                        {product.category}
+                      </span>
+                    </div>
 
-                    <h3 className="mt-3 text-xl font-bold text-slate-800">{product.name}</h3>
+                    <h3
+                      className="mt-3 line-clamp-2 text-[1.1rem] font-bold leading-tight text-slate-800"
+                      title={product.name}
+                    >
+                      {product.name}
+                    </h3>
 
-                    <p className="mt-2 min-h-[42px] text-sm text-slate-500">
+                    <p
+                      className="mt-2 text-sm text-slate-500 line-clamp-2 flex-grow"
+                      title={product.description}
+                    >
                       {product.description || "Chưa có mô tả"}
                     </p>
 
-                    <div className="mt-3 flex items-center justify-between text-sm">
-                      <strong className="text-slate-800">
-                        {formatCurrency(Number(product.price))}
-                      </strong>
-                      <span className="text-slate-500">Tồn: {product.stock}</span>
-                    </div>
+                    <div className="mt-4 pt-4 border-t border-[#f0f4ef]">
+                      <div className="flex items-center gap-2 text-sm">
+                        <strong className="flex-1 truncate text-slate-800 text-base">
+                          {formatCurrency(Number(product.price))}
+                        </strong>
+                        <span className="flex-shrink-0 text-slate-500 font-medium">
+                          Tồn: {product.stock}
+                        </span>
+                      </div>
 
-                    <div className="mt-2 text-sm font-semibold text-[#4e6b53]">
-                      {product.active ? "Đang bán" : "Ngưng bán"}
-                    </div>
+                      <div className="mt-2 text-xs font-semibold text-[#4e6b53] uppercase tracking-wider">
+                        {product.active ? "● Đang bán" : "○ Ngưng bán"}
+                      </div>
 
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-3 py-2 text-sm font-semibold text-slate-700"
-                      >
-                        <Pencil size={15} />
-                        Sửa
-                      </button>
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[#d7e2d5] bg-[#eef3ee] px-2 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 sm:text-sm"
+                        >
+                          <Pencil size={15} />
+                          <span className="truncate">Cập nhật</span>
+                        </button>
 
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600"
-                      >
-                        <Trash2 size={15} />
-                        Xóa
-                      </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                          title="Xóa sản phẩm"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
 
-              {products.length === 0 && (
-                <div className="rounded-[22px] border border-dashed border-[#d7e2d5] p-6 text-slate-500">
-                  Chưa có sản phẩm nào trong Supabase.
+              {filteredProducts.length === 0 && (
+                <div className="col-span-full rounded-[22px] border border-dashed border-[#d7e2d5] p-6 text-center text-slate-500">
+                  {products.length === 0
+                    ? "Chưa có sản phẩm nào trong Supabase."
+                    : "Không tìm thấy sản phẩm nào phù hợp với từ khóa."}
                 </div>
               )}
             </div>

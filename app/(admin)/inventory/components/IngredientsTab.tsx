@@ -149,14 +149,14 @@ export default function IngredientsTab() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[430px_1fr]">
-      <div className="space-y-6">
+    <div className="flex flex-col gap-6">
+      <div className="w-full space-y-6">
         <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-slate-800">Thêm nguyên liệu</h2>
           <p className="mt-1 text-sm text-slate-500">Thêm danh mục để phục vụ nhập kho và báo cáo.</p>
 
-          <form onSubmit={submitIngredient} className="mt-4 space-y-4">
-            <div>
+          <form onSubmit={submitIngredient} className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
+            <div className="flex-1">
               <label className="mb-2 block text-sm font-semibold text-slate-700">Tên nguyên liệu</label>
               <input
                 className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
@@ -165,7 +165,7 @@ export default function IngredientsTab() {
                 placeholder="Ví dụ: Sữa tươi"
               />
             </div>
-            <div>
+            <div className="flex-1">
               <label className="mb-2 block text-sm font-semibold text-slate-700">Đơn vị</label>
               <input
                 className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none"
@@ -174,11 +174,11 @@ export default function IngredientsTab() {
                 placeholder="Ví dụ: Lít / Kg / Chai"
               />
             </div>
-            <div className="flex gap-3">
-              <button type="submit" className="inline-flex items-center gap-2 rounded-2xl bg-[#4e6b53] px-4 py-3 font-semibold text-white hover:bg-[#3f5845]">
+            <div className="flex shrink-0 gap-3">
+              <button type="submit" className="inline-flex h-[50px] items-center gap-2 rounded-2xl bg-[#4e6b53] px-6 font-semibold text-white hover:bg-[#3f5845]">
                 <Plus size={16} />Thêm
               </button>
-              <button type="button" onClick={() => setIngredientForm(emptyIngredientForm)} className="rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-4 py-3 font-semibold text-slate-700">
+              <button type="button" onClick={() => setIngredientForm(emptyIngredientForm)} className="h-[50px] rounded-2xl border border-[#d7e2d5] bg-[#eef3ee] px-6 font-semibold text-slate-700 hover:bg-[#dfeada]">
                 Reset
               </button>
             </div>
@@ -186,7 +186,7 @@ export default function IngredientsTab() {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="w-full space-y-6">
         <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-slate-800">Tồn kho hiện tại</h2>
           <div className="mt-4 overflow-x-auto">

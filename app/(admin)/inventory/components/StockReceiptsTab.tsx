@@ -456,51 +456,51 @@ export default function StockReceiptsTab() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[430px_1fr]">
-        <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-6">
+        <div className="w-full flex-col rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-slate-800">Phiếu nhập kho liên kết</h2>
           <p className="mt-1 text-sm text-slate-500">Một lần ghi nhận sẽ sinh ra: phiếu nhập kho, phiếu giao hàng và chứng từ thanh toán.</p>
 
           <form onSubmit={submitReceipt} className="mt-4 space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Nhà cung cấp (*)</label>
-              <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}>
-                <option value="">-- Chọn nhà cung cấp --</option>
-                {suppliers.filter((s) => s.active).map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Nhà cung cấp (*)</label>
+                <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}>
+                  <option value="">-- Chọn nhà cung cấp --</option>
+                  {suppliers.filter((s) => s.active).map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Mã phiếu giao hàng</label>
                 <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={deliveryForm.delivery_code} onChange={(e) => setDeliveryForm((prev) => ({ ...prev, delivery_code: e.target.value }))} placeholder="Tự sinh nếu rỗng" />
               </div>
+
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Người giao</label>
                 <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={deliveryForm.delivered_by} onChange={(e) => setDeliveryForm((prev) => ({ ...prev, delivered_by: e.target.value }))} />
               </div>
-            </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Mã chứng từ thanh toán</label>
                 <input className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.payment_code} onChange={(e) => setPaymentForm((prev) => ({ ...prev, payment_code: e.target.value }))} placeholder="Tự sinh nếu rỗng" />
               </div>
+
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Số tiền thanh toán</label>
                 <input type="text" inputMode="numeric" className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.amount} onChange={(e) => setPaymentForm((prev) => ({ ...prev, amount: e.target.value.replace(/\D/g, "") }))} placeholder={String(receiptGrandTotal)} />
               </div>
-            </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Hình thức thanh toán</label>
-              <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.payment_method} onChange={(e) => setPaymentForm((prev) => ({ ...prev, payment_method: e.target.value }))}>
-                <option value="cash">Tiền mặt</option>
-                <option value="bank_transfer">Chuyển khoản</option>
-                <option value="debt">Công nợ</option>
-              </select>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Hình thức thanh toán</label>
+                <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={paymentForm.payment_method} onChange={(e) => setPaymentForm((prev) => ({ ...prev, payment_method: e.target.value }))}>
+                  <option value="cash">Tiền mặt</option>
+                  <option value="bank_transfer">Chuyển khoản</option>
+                  <option value="debt">Công nợ</option>
+                </select>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -513,16 +513,16 @@ export default function StockReceiptsTab() {
                     )}
                   </div>
                   <div className="space-y-3">
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">Nguyên liệu</label>
-                      <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={line.ingredientId} onChange={(e) => updateReceiptLine(line.lineId, "ingredientId", e.target.value)}>
-                        <option value="">-- Chọn nguyên liệu --</option>
-                        {ingredients.map((item) => (
-                          <option key={item.id} value={item.id}>{item.name} ({item.unit}) - Tồn: {item.quantity}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Nguyên liệu</label>
+                        <select className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={line.ingredientId} onChange={(e) => updateReceiptLine(line.lineId, "ingredientId", e.target.value)}>
+                          <option value="">-- Chọn nguyên liệu --</option>
+                          {ingredients.map((item) => (
+                            <option key={item.id} value={item.id}>{item.name} ({item.unit}) - Tồn: {item.quantity}</option>
+                          ))}
+                        </select>
+                      </div>
                       <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Số lượng</label>
                         <input type="text" inputMode="numeric" className="w-full rounded-2xl border border-[#d7e2d5] px-4 py-3 outline-none" value={line.quantity} onChange={(e) => updateReceiptLine(line.lineId, "quantity", e.target.value.replace(/\D/g, ""))} />
@@ -558,7 +558,7 @@ export default function StockReceiptsTab() {
           </form>
         </div>
 
-        <div className="space-y-6">
+        <div className="w-full space-y-6">
           <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-800">Lịch sử phiếu nhập</h2>
