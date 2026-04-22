@@ -309,16 +309,21 @@ export default function OrdersPage() {
             <p className="mt-1 text-sm text-slate-500">
               Lọc theo ngày và theo ca để quản lý đơn hàng theo từng khung giờ vận hành.
             </p>
-            {selectedForMerge.length > 1 && (
+            <div className="mt-3 flex items-center gap-3">
               <button
                 type="button"
                 onClick={handleMergeOrders}
-                className="mt-3 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 transition-colors"
-                disabled={loading}
+                disabled={selectedForMerge.length < 2 || loading}
+                className="rounded-xl px-4 py-2 font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 bg-blue-600 text-white hover:bg-blue-700"
               >
-                Gộp {selectedForMerge.length} đơn đã chọn
+                Gộp đơn ({selectedForMerge.length} đang chọn)
               </button>
-            )}
+              {selectedForMerge.length < 2 && (
+                <span className="text-sm text-slate-500 italic">
+                  * Chọn ít nhất 2 đơn chưa thanh toán ở bảng dưới để gộp
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-4">
