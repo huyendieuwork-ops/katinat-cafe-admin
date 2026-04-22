@@ -49,14 +49,7 @@ export default function LoginPage() {
 
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/8 p-6 backdrop-blur">
-              <p className="text-sm uppercase tracking-[0.25em] text-white/60">
-                Olive green concept
-              </p>
-              <p className="mt-3 text-xl font-semibold">
-                Giao diện tối giản, thực tế, dễ dùng cho admin và nhân viên.
-              </p>
-            </div>
+
           </div>
 
           <div className="flex items-center justify-center p-6 sm:p-10">
