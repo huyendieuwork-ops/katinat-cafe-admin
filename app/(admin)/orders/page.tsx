@@ -10,6 +10,7 @@ import {
   updateOrderInSupabase,
   updateProductStockInSupabase,
   upsertCustomerAfterPayment,
+  deleteOrderInSupabase,
 } from "@/lib/db";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import OrderDetailModal from "./components/OrderDetailModal";
@@ -107,6 +108,68 @@ export default function OrdersPage() {
   const [shift, setShift] = useState<ShiftType>("all");
 
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
+  const [selectedForMerge, setSelectedForMerge] = useState<string[]>([]);
+
+  async function handleMergeOrders() {
+    if (selectedForMerge.length < 2) return;
+
+    if (!confirm(`Bạn có chắc chắn muốn gộp ${selectedForMerge.length} đơn hàng này thành một?`)) {
+      return;
+    }
+
+    const toMerge = orders.filter((o) => selectedForMerge.includes(o.id));
+    toMerge.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    
+    const baseOrder = toMerge[0];
+    const otherOrders = toMerge.slice(1);
+
+    let mergedItems = [...baseOrder.items];
+    let addedSubtotal = 0;
+    let addedDiscount = 0;
+    let addedFinalTotal = 0;
+
+    for (const o of otherOrders) {
+      mergedItems.push(...o.items);
+      addedSubtotal += o.subtotal;
+      addedDiscount += o.discount;
+      addedFinalTotal += o.final_total;
+    }
+
+    const newSubtotal = baseOrder.subtotal + addedSubtotal;
+    const newDiscount = baseOrder.discount + addedDiscount;
+    const newFinalTotal = baseOrder.final_total + addedFinalTotal;
+
+    try {
+      setLoading(true);
+      await updateOrderInSupabase(baseOrder.id, {
+        items: mergedItems,
+        subtotal: newSubtotal,
+        discount: newDiscount,
+        final_total: newFinalTotal,
+      });
+
+      for (const o of otherOrders) {
+        if (o.table_id && o.table_id !== baseOrder.table_id) {
+          await updateCafeTableInSupabase(o.table_id, {
+            status: "available",
+            current_order_id: null,
+            current_customer_name: null,
+            occupied_at: null,
+          });
+        }
+        await deleteOrderInSupabase(o.id);
+      }
+
+      alert("Gộp đơn hàng thành công!");
+      setSelectedForMerge([]);
+      await loadOrders();
+    } catch (error) {
+      console.error("Lỗi khi gộp đơn hàng:", error);
+      alert("Đã xảy ra lỗi khi gộp đơn hàng.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handlePrint = () => {
     window.print();
@@ -246,6 +309,16 @@ export default function OrdersPage() {
             <p className="mt-1 text-sm text-slate-500">
               Lọc theo ngày và theo ca để quản lý đơn hàng theo từng khung giờ vận hành.
             </p>
+            {selectedForMerge.length > 1 && (
+              <button
+                type="button"
+                onClick={handleMergeOrders}
+                className="mt-3 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 transition-colors"
+                disabled={loading}
+              >
+                Gộp {selectedForMerge.length} đơn đã chọn
+              </button>
+            )}
           </div>
 
           <div className="grid gap-3 md:grid-cols-4">
@@ -324,7 +397,24 @@ export default function OrdersPage() {
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="bg-[#eff4ef] text-left text-sm text-slate-700">
-                  <th className="rounded-l-2xl px-4 py-3">Mã đơn</th>
+                  <th className="rounded-l-2xl px-4 py-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      className="cursor-pointer"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedForMerge(filteredOrders.filter(o => o.status !== "paid").map(o => o.id));
+                        } else {
+                          setSelectedForMerge([]);
+                        }
+                      }}
+                      checked={
+                        filteredOrders.filter(o => o.status !== "paid").length > 0 &&
+                        selectedForMerge.length === filteredOrders.filter(o => o.status !== "paid").length
+                      }
+                    />
+                  </th>
+                  <th className="px-4 py-3">Mã đơn</th>
                   <th className="px-4 py-3">Khách hàng</th>
                   <th className="px-4 py-3">Thời gian tạo</th>
                   <th className="px-4 py-3">Hình thức</th>
@@ -338,6 +428,21 @@ export default function OrdersPage() {
               <tbody>
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="border-b border-[#edf1ec] text-sm">
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        className="cursor-pointer"
+                        disabled={order.status === "paid"}
+                        checked={selectedForMerge.includes(order.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedForMerge(prev => [...prev, order.id]);
+                          } else {
+                            setSelectedForMerge(prev => prev.filter(id => id !== order.id));
+                          }
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-3">{order.id}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-800">{order.customer_name}</div>
@@ -358,9 +463,9 @@ export default function OrdersPage() {
                     <td className="px-4 py-3">{formatCurrency(order.final_total)}</td>
                     <td className="px-4 py-3">
                       <select
-                        className="rounded-xl border border-[#d7e2d5] px-3 py-2 outline-none"
+                        className="rounded-xl border border-[#d7e2d5] px-3 py-2 outline-none disabled:bg-slate-100 disabled:text-slate-400"
                         value={order.status}
-                        disabled={updatingId === order.id}
+                        disabled={updatingId === order.id || order.status === "paid"}
                         onChange={(e) =>
                           changeOrderStatus(order, e.target.value as OrderStatus)
                         }
@@ -386,7 +491,7 @@ export default function OrdersPage() {
 
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
                       Không có đơn hàng nào theo bộ lọc hiện tại.
                     </td>
                   </tr>

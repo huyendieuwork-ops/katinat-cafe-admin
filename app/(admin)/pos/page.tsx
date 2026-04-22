@@ -326,7 +326,7 @@ export default function PosPage() {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[1.5fr_0.95fr]">
+      <div className="grid gap-5 xl:grid-cols-[3fr_1fr]">
         <div className="rounded-[24px] border border-[#d7e2d5] bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row">
             <div className="flex flex-1 items-center gap-2 rounded-2xl border border-[#d7e2d5] px-4 py-3">
@@ -358,7 +358,7 @@ export default function PosPage() {
               Đang tải dữ liệu POS từ Supabase...
             </div>
           ) : (
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-5 grid gap-4 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}

@@ -206,6 +206,11 @@ export async function updateOrderInSupabase(id: string, payload: any) {
   if (error) throw error;
 }
 
+export async function deleteOrderInSupabase(id: string) {
+  const { error } = await supabase.from("orders").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateProductStockInSupabase(id: string, stock: number) {
   const { error } = await supabase.from("products").update({ stock }).eq("id", id);
   if (error) throw error;
