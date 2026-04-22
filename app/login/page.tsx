@@ -46,10 +46,7 @@ export default function LoginPage() {
                 <br />
                 Cafe Admin
               </h1>
-              <p className="mt-4 max-w-md text-sm leading-7 text-white/80">
-                Hệ thống quản lý quán cafe đồng bộ sản phẩm, POS, bàn, khách hàng,
-                đơn hàng, kho và dashboard theo thời gian thực.
-              </p>
+
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/8 p-6 backdrop-blur">
